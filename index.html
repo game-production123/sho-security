@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>sho security</title>
+  <style>
+    :root { --bg:#0b1020; --card:#121a33; --text:#e7ecff; --muted:#9fb0ff; --danger:#ff6b6b; --ok:#5cffb1; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: radial-gradient(1200px 700px at 20% 10%, #1d2a66 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height:100vh; display:grid; place-items:center;
+    }
+    .card { width:min(720px, 92vw);
+      background: rgba(18,26,51,.92);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; letter-spacing:.4px; }
+    .muted { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    label { display:block; font-size: 13px; margin: 14px 0 6px; color: #c7d1ff; }
+    input { width:100%; box-sizing:border-box; border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.28);
+      color: var(--text);
+      padding: 12px 12px;
+      outline:none;
+      font-size: 18px;
+    }
+    .row { display:flex; gap: 10px; flex-wrap:wrap; margin-top: 12px; }
+    button { border: 0; border-radius: 14px; padding: 12px 14px; font-weight: 800; cursor: pointer; }
+    .primary { background: linear-gradient(135deg,#6aa9ff,#8a5cff); color: #081028; }
+    .ghost { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.14); }
+    .status { margin-top: 10px; font-size: 14px; }
+    .danger { color: var(--danger); }
+    .ok { color: var(--ok); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding: 6px 10px;
+      border-radius: 999px; border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22); font-size: 12px; margin-top: 10px; color:#cfe0ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔒 sho security 🔒</h1>
+    <div class="muted">
+      暗号を入力してください。
+    </div>
+
+    <label>暗号入力</label>
+    <input id="secret" placeholder="ここに入力" autocomplete="off" inputmode="text" />
+
+    <div class="row">
+      <button class="primary" id="checkBtn">チェック</button>
+      <button class="ghost" id="clearBtn">クリア</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <div class="pill">
+      <span>Security:</span>
+      <span class="mono">token</span>
+      <span>+ 30s expiry</span>
+    </div>
+  </div>
+
+<script>
+ 
+  const CORRECT = "🔑";
+
+  const TOKEN_TTL_MS = 30 * 1000;
+
+  const secretEl = document.getElementById("secret");
+  const statusEl = document.getElementById("status");
+
+  function setStatus(msg, ok) {
+    statusEl.textContent = msg;
+    statusEl.className = "status " + (ok ? "ok" : "danger");
+  }
+
+  function normalize(s) {
+    return s.trim();
+  }
+
+  function makeToken() {
+   
+    if (window.crypto && crypto.randomUUID) {
+      return crypto.randomUUID() + crypto.randomUUID();
+    }
+  
+    return Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join("");
+  }
+
+  function check() {
+    const v = normalize(secretEl.value);
+
+    if (v === CORRECT) {
+      setStatus("success", true);
+
+      sessionStorage.setItem("gate_success", "1");
+
+      sessionStorage.setItem("gate_token", makeToken());
+      sessionStorage.setItem("gate_exp", String(Date.now() + TOKEN_TTL_MS));
+
+      setTimeout(() => {
+        location.href = "celebrate.html";
+      }, 600);
+    } else {
+      setStatus("暗号が違います。", false);
+    }
+  }
+
+  document.getElementById("checkBtn").addEventListener("click", check);
+  secretEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") check();
+  });
+
+  document.getElementById("clearBtn").addEventListener("click", () => {
+    secretEl.value = "";
+    statusEl.textContent = "";
+    statusEl.className = "status";
+ 
+    sessionStorage.removeItem("gate_success");
+    sessionStorage.removeItem("gate_token");
+    sessionStorage.removeItem("gate_exp");
+  });
+
+
+  (function cleanupExpired() {
+    const exp = Number(sessionStorage.getItem("gate_exp"));
+    if (Number.isFinite(exp) && Date.now() > exp) {
+      sessionStorage.removeItem("gate_success");
+      sessionStorage.removeItem("gate_token");
+      sessionStorage.removeItem("gate_exp");
+    }
+  })();
+</script>
+</body>
+</html>
